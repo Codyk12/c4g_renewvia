@@ -1,15 +1,5 @@
 # Georgia Tech C4G - Renewvia Project
 
-## Introduction
-
-
-- Authentication using google with 2 provided test accounts
-- CI/CD which will deploy the application and DB to the [c4g.dev](https://c4g.dev) server using your applications sub-domain.
-- A user management page for `ADMIN` users. Base roles are `ADMIN` and `STAFF`.
-- Project specific deliverable pages to quickly update as we progress through the course. Found by clicking the `Team` link in the footer of the application.
-- More to come as we add common features we find useful across applications. We welcome student pull requests to add features!
-
-  Our goal is to make this template easy to use for any student in the class, so feedback to improve the template or this readme are most welcome!
 
 ## Getting Started
 
