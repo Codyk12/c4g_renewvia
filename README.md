@@ -1,8 +1,7 @@
-# Template for C4G CS-6150 Class Projects
+# Georgia Tech C4G - Renewvia Project
 
 ## Introduction
 
-The purpose of this repository is to proved a template for a base starting point for C4G course projects. This template is not mandatory, but it captures the needs of a typical C4G project that uses a website and a database. A team that uses the template for building their project can also use it to meet course reporting requirements. Features include:
 
 - Authentication using google with 2 provided test accounts
 - CI/CD which will deploy the application and DB to the [c4g.dev](https://c4g.dev) server using your applications sub-domain.

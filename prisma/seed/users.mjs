@@ -2,7 +2,22 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { createId } from '@paralleldrive/cuid2';
 
 const USERS = [
-
+  {
+    email: 'c4gdevad@gmail.com',
+    userName: 'C4G Admin',
+    role: 'ADMIN',
+    providerAccountId: '102858545601971723113',
+    access_token:
+      'ya29.a0ARW5m75ebIow_zleIZhGH5JZLdu_KwlRrkvHUqkR__PCBmWtEEZ7y0-pkNdCBeXE3dLgfvBh5Hm5b229EPkfI5_rNOQmWiIhW526-M5Kec542kL3ORyAef0g8kfutOIURrUisC_plPgBMCHNEdaemYlrQKsZDVKa87PDZvYtaCgYKAXgSARASFQHGX2Mi_M6TsgN9eU1uSB1APqxswg0175',
+  },
+  {
+    email: 'c4gdevstaff@gmail.com',
+    userName: 'C4G Staff',
+    role: 'STAFF',
+    providerAccountId: '116868783453066553710',
+    access_token:
+      'ya29.a0ARW5m75h3Di2X6tWkpSZTnrgvj5A1KaI5eq29lMRz3qOc_jmJJ3xDr-X1qZOFbpxSshdxctOWVI0OpEUfG_uUnlCa6_22sNxvPYZMGAjMJ3KFKtIXFjeSHprSZ8-SOS4IC4k16qZWxCbN0m6i_B9RbpslRVHbFSicetX6jZgaCgYKATMSARESFQHGX2MihfffXVDHDMtKUATMoKonqA0175',
+  },
 ];
 
 const seedUser = async (
