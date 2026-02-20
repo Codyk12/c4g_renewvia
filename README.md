@@ -1,6 +1,15 @@
 # Georgia Tech C4G - Renewvia Project
 
 
+## Spring 2026
+Team Members: 
+- Cody Kesler
+- Harry Li
+- Haden Sangree
+- Emily Thomas
+- Mlen-Too Wesley
+
+
 ## Getting Started
 
 1. Make sure you have the following setup and configured on your computer:
