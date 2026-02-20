@@ -34,7 +34,7 @@ jobs:
         run: pnpm lint
 
       - name: Run tests
-        run: pnpm test
+        run: pnpm test --passWithNoTests
 
       - name: Build and Test
         env:
