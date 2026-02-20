@@ -27,7 +27,6 @@ export default function DemoPage() {
   const polylinesRef = useRef<google.maps.Polyline[]>([]);
   const [dataPoints, setDataPoints] = useState<LocationPoint[]>([]);
   const [mstEdges, setMstEdges] = useState<MSTEdge[]>([]);
-  const [mstTotal, setMstTotal] = useState<number | null>(null);
   const [computingMst, setComputingMst] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -248,7 +247,6 @@ export default function DemoPage() {
 
     setComputingMst(true);
     setMstEdges([]);
-    setMstTotal(null);
     setCalcError(null);
 
     try {
@@ -284,7 +282,6 @@ export default function DemoPage() {
       let totalHighVoltageMeters = 0;
 
       const edges = data.edges || [];
-      const totalDegreeDiff = data.total_weight || 0;
 
       edges.forEach((edge: MSTEdge) => {
         if (!edge?.start || !edge?.end) return;
@@ -317,7 +314,6 @@ export default function DemoPage() {
 
       // Update states
       setMstEdges(edges);
-      setMstTotal(totalDegreeDiff); // keep original for reference if needed
       setCostBreakdown({
         LowVoltageMeters: totalLowVoltageMeters,
         HighVoltageMeters: totalHighVoltageMeters,
