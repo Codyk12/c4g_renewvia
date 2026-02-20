@@ -27,8 +27,8 @@ jobs:
         run: |
           npx vercel@latest pull --yes
           npx vercel@latest build 
-          npx vercel@latest deploy --prod
+          npx vercel@latest deploy 
           
           cd backend
-          npx vercel@latest build --prod
-          npx vercel@latest deploy --prod
+          npx vercel@latest build 
+          npx vercel@latest deploy
