@@ -1,6 +1,5 @@
 # Georgia Tech C4G - Renewvia Project
 
-
 ## Spring 2026
 Team Members: 
 - Cody Kesler
