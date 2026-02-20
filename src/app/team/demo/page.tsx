@@ -283,6 +283,7 @@ export default function DemoPage() {
 
       const edges = data.edges || [];
 
+      // comput haverstine distance between each edge
       edges.forEach((edge: MSTEdge) => {
         if (!edge?.start || !edge?.end) return;
 
