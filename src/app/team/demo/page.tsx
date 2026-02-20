@@ -17,6 +17,7 @@ interface MSTEdge {
   start: { lat: number; lng: number };
   end: { lat: number; lng: number };
   weight: number;
+  voltage: 'low' | 'high';
 }
 
 
@@ -285,7 +286,7 @@ export default function DemoPage() {
       const edges = data.edges || [];
       const totalDegreeDiff = data.total_weight || 0;
 
-      edges.forEach((edge) => {
+      edges.forEach((edge: MSTEdge) => {
         if (!edge?.start || !edge?.end) return;
 
         const dist = haversineMeters(
@@ -300,7 +301,6 @@ export default function DemoPage() {
         } else {
           totalHighVoltageMeters += dist;
         }
-
       });
 
 
@@ -332,6 +332,8 @@ export default function DemoPage() {
 
       // Optional: show the echoed costs (for debugging/confirmation)
     } catch (err: unknown) {
+
+      if (err instanceof Error)
       setCalcError(err.message || 'Failed to run optimization');
       console.error(err);
     } finally {

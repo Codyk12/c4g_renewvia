@@ -83,13 +83,21 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: unknown) {
     console.error('API error:', err);
-    return NextResponse.json(
-      { error: err.message || 'Failed to run optimization' },
-      { status: 500 }
-    );
+
+    let errorMessage = 'Failed to run optimization';
+
+    if (err instanceof Error) {
+      errorMessage = err.message;
+    } else if (typeof err === 'string') {
+      errorMessage = err;
+    } else if (err && typeof err === 'object' && 'message' in err) {
+      errorMessage = String((err).message);
+    }
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   } finally {
     if (tempFilePath) {
-      await fs.unlink(tempFilePath).catch(() => {}); // silent cleanup
+      await fs.unlink(tempFilePath).catch(() => {});
     }
   }
 }
