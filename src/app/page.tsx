@@ -26,8 +26,11 @@ export default function Home() {
 
         {/* Subtitle */}
         <p className='mt-6 max-w-2xl text-base leading-relaxed text-pretty text-white/70 sm:text-lg'>
+          Georgia Tech - Computing for Good - Volunteer Project <br />
+          <br />
           Improving planning and performance for real-world mini-grid
-          deployments with data-driven tooling and a clean, usable interface.
+          deployments empowering Renewvia to service African communities more
+          effectively
         </p>
 
         {/* Actions */}

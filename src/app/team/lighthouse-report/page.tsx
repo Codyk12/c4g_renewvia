@@ -17,7 +17,7 @@ export default function LighthouseReportPage() {
           <div className='mb-8 inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-6 py-2 backdrop-blur-md'>
             <span className='text-2xl'>📊</span>
             <span className='text-sm font-medium tracking-[4px] uppercase'>
-              Renewvia Energy
+              C4G - Renewvia Energy
             </span>
           </div>
 
@@ -49,32 +49,28 @@ export default function LighthouseReportPage() {
                 <div className='mb-2 text-sm font-medium tracking-wide text-emerald-400 uppercase'>
                   Performance
                 </div>
-                <div className='text-4xl font-bold text-white'>—</div>
-                <div className='mt-1 text-sm text-zinc-400'>Score pending</div>
+                <div className='text-4xl font-bold text-white'>100</div>
               </div>
 
               <div className='rounded-2xl border border-zinc-700 bg-zinc-800/50 p-6'>
                 <div className='mb-2 text-sm font-medium tracking-wide text-emerald-400 uppercase'>
                   Accessibility
                 </div>
-                <div className='text-4xl font-bold text-white'>—</div>
-                <div className='mt-1 text-sm text-zinc-400'>Score pending</div>
+                <div className='text-4xl font-bold text-white'>94</div>
               </div>
 
               <div className='rounded-2xl border border-zinc-700 bg-zinc-800/50 p-6'>
                 <div className='mb-2 text-sm font-medium tracking-wide text-emerald-400 uppercase'>
                   Best Practices
                 </div>
-                <div className='text-4xl font-bold text-white'>—</div>
-                <div className='mt-1 text-sm text-zinc-400'>Score pending</div>
+                <div className='text-4xl font-bold text-white'>100</div>
               </div>
 
               <div className='rounded-2xl border border-zinc-700 bg-zinc-800/50 p-6'>
                 <div className='mb-2 text-sm font-medium tracking-wide text-emerald-400 uppercase'>
                   SEO
                 </div>
-                <div className='text-4xl font-bold text-white'>—</div>
-                <div className='mt-1 text-sm text-zinc-400'>Score pending</div>
+                <div className='text-4xl font-bold text-white'>100</div>
               </div>
             </div>
 

@@ -2,7 +2,8 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'C4G Renewvia Project Team • Solar Mini-Grid Optimization',
-  description: 'Project 7: Solar Mini-Grid Powerline Distribution Networks',
+  description:
+    'Volunteer Project 7: Solar Mini-Grid Powerline Distribution Networks',
   icons: { icon: '/favicon.ico' },
 };
 
@@ -82,12 +83,12 @@ export default function TeamPage() {
           <div className='mb-6 inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-6 py-2 backdrop-blur-md'>
             <span className='text-2xl'>☀️</span>
             <span className='text-sm font-medium tracking-[4px] uppercase'>
-              Renewvia Energy
+              C4G - Renewvia Energy
             </span>
           </div>
 
           <h1 className='mb-4 text-6xl font-bold tracking-tighter md:text-7xl'>
-            Renewvia Team
+            Georgia Tech Renewvia Project Volunteer Team
           </h1>
           <p className='text-3xl font-light text-emerald-100 md:text-4xl'>
             Solar Mini-Grid Powerline Distribution Networks
@@ -110,7 +111,7 @@ export default function TeamPage() {
                   5 Georgia Tech Masters Students
                 </div>
                 <div className='text-xs text-emerald-200'>
-                  Building the future of rural electrification
+                  Helping to accelerate the future of rural electrification
                 </div>
               </div>
             </div>
@@ -126,12 +127,13 @@ export default function TeamPage() {
               MEET THE TEAM
             </div>
             <h2 className='text-5xl font-bold tracking-tighter'>
-              The Renewvia Pioneers
+              The Georgia Tech Team
             </h2>
           </div>
           <div className='hidden max-w-xs text-right text-sm text-zinc-400 md:block'>
             Passionate engineers, data scientists, and developers working
-            together to optimize power distribution for communities across Africa.
+            together to optimize power distribution for communities across
+            Africa.
           </div>
         </div>
 
