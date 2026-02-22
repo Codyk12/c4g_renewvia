@@ -11,7 +11,7 @@ const teamMembers = [
   {
     name: 'Cody Kesler',
     initials: 'CK',
-    role: 'Data Scientist',
+    role: 'Team Lead',
     skills: [
       'Machine Learning',
       'Optimization',
@@ -24,15 +24,23 @@ const teamMembers = [
   {
     name: 'Harry Li',
     initials: 'HL',
-    role: 'Full-Stack Data Analyst',
+    role: 'Team Member',
     skills: ['Data Analysis', 'Full-Stack Development', 'Docker', 'Kubernetes'],
     experience:
       'Data Analyst in Healthcare. Experience with Full-Stack Dev, Docker & Kubernetes.',
   },
   {
+    name: 'Haden Sangree',
+    initials: 'HS',
+    role: 'Team Member',
+    skills: ['Machine Learning', 'Embedded Software', 'Electrical Engineering'],
+    experience:
+      'Embedded software for variable frequency drives, PCB design, HVAC design.',
+  },
+  {
     name: 'Emily Thomas',
     initials: 'ET',
-    role: 'ML Product Engineer',
+    role: 'Team Member',
     skills: [
       'Optimization',
       'Machine Learning',
@@ -43,9 +51,9 @@ const teamMembers = [
       'Machine Learning Product Engineer in EDA. Past experience as Applications Engineer (EDA) and Chemical Engineering.',
   },
   {
-    name: 'Mlen-Too Wesley II',
+    name: 'Mlen-Too Wesley',
     initials: 'MW',
-    role: 'Tech Project Lead',
+    role: 'Team Member',
     skills: [
       'Software Development',
       'Data Science',
@@ -55,23 +63,7 @@ const teamMembers = [
     experience:
       'Currently leading teams at the World Bank supporting tech projects in East Africa.',
   },
-  {
-    name: 'Haden Sangree',
-    initials: 'HS',
-    role: 'Embedded Systems Engineer',
-    skills: ['Machine Learning', 'Embedded Software', 'Electrical Engineering'],
-    experience:
-      'Embedded software for variable frequency drives, PCB design, HVAC design.',
-  },
-].sort((a, b) => {
-  // Extract last name (everything after the last space)
-  const getLastName = (fullName: string) => {
-    const parts = fullName.trim().split(/\s+/);
-    return parts[parts.length - 1].toLowerCase();
-  };
-
-  return getLastName(a.name).localeCompare(getLastName(b.name));
-});
+];
 
 export default function TeamPage() {
   return (

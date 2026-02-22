@@ -43,3 +43,17 @@ next-env.d.ts
 /prisma/generated/
 package-lock.json
 .env*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+MANIFEST
+
+# Virtual Environments
+env/
+venv/
+.venv/
+ENV/
