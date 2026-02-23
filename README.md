@@ -53,12 +53,8 @@ pnpm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-8. You may login with either of the accounts below or with your own gmail account
+8. Login with a gmail account
 
-| Username              | Password         | Role  |
-| --------------------- | ---------------- | ----- |
-| c4gdevad@gmail.com    | EHdqcGJajTAnSy$8 | ADMIN |
-| c4gdevstaff@gmail.com | JCbSk3&&JF!h#m@x | STAFF |
 
 9. To access the database you can run the following command in a new terminal:
 
