@@ -19,9 +19,9 @@ def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> floa
 
     Args:
         lat1 (float): Latitude of the first point in degrees.
-        lng1 (float): lnggitude of the first point in degrees.
+        lng1 (float): longitude of the first point in degrees.
         lat2 (float): Latitude of the second point in degrees.
-        lng2 (float): lnggitude of the second point in degrees.
+        lng2 (float): longitude of the second point in degrees.
 
     Returns:
         float: Distance in meters.
@@ -149,7 +149,7 @@ def build_directed_graph_for_arborescence(
         for h in house_indices:
             d = dist_matrix[p, h]
             if 0.1 < d <= MAX_HOUSE_TO_POLE:
-                w = d # TODO: Adjust weight based on costs
+                w = d  # TODO: Adjust weight based on costs
                 DG.add_edge(p, h, weight=w, length=d, voltage="low")
 
     # Bidirectional pole ↔ pole (undirected spans)
@@ -157,7 +157,7 @@ def build_directed_graph_for_arborescence(
         for j in range(i + 1, len(pole_indices)):
             p1, p2 = pole_indices[i], pole_indices[j]
             d = dist_matrix[p1, p2]
-            w = d # TODO: Adjust weight based on costs
+            w = d  # TODO: Adjust weight based on costs
             if 0.1 < d <= MAX_POLE_TO_POLE:
                 DG.add_edge(p1, p2, weight=w, length=d, voltage="high")
                 DG.add_edge(p2, p1, weight=w, length=d, voltage="high")
@@ -166,7 +166,7 @@ def build_directed_graph_for_arborescence(
     for p in pole_indices:
         d = dist_matrix[source_idx, p]
         if 0.1 < d <= MAX_POLE_TO_POLE * 1.5:
-            w = d # TODO: Adjust weight based on costs
+            w = d  # TODO: Adjust weight based on costs
             DG.add_edge(source_idx, p, weight=w, length=d, voltage="high")
 
     return DG
@@ -182,7 +182,7 @@ def prune_dead_end_pole_branches(arbo: nx.DiGraph, pole_indices: list, house_ind
     the original.
 
     Args:
-        arbo (nx.DiGraph): The input directed graph representing the network structure.
+        arbo (nx.DiGraph): A directed graph representing the network structure.
         pole_indices (list): A list of node indices representing poles in the graph.
         house_indices (list): A list of node indices representing houses in the graph.
 
