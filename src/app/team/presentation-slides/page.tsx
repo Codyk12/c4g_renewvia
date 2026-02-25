@@ -16,7 +16,7 @@ export default function PresentationSlidesPage() {
           <div className='mb-8 inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-6 py-2 backdrop-blur-md'>
             <span className='text-2xl'>📽️</span>
             <span className='text-sm font-medium tracking-[4px] uppercase'>
-              C4G - Renewvia Energy
+              C4G - Renewvia Energy Project Project
             </span>
           </div>
 
@@ -51,9 +51,7 @@ export default function PresentationSlidesPage() {
 
       {/* Footer */}
       <footer className='border-t border-zinc-800 py-12 text-center text-sm text-zinc-500'>
-        <p>
-          © 2026 Renewvia • CS 6150 Computing For Good • Presentation Slides
-        </p>
+        <p>© 2026 • CS 6150 Computing For Good • Presentation Slides</p>
       </footer>
     </div>
   );

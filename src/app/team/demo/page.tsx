@@ -525,6 +525,75 @@ export default function DemoPage() {
     setHighVoltageCost(highVoltageCost);
   };
 
+  const downloadNodesCsv = () => {
+    if (mstNodes.length === 0) return;
+
+    // Define CSV headers and order
+    const headers = ['index', 'name', 'type', 'lat', 'lng'];
+
+    const rows = mstNodes.map((node) => [
+      node.index,
+      node.name,
+      node.type,
+      node.lat.toFixed(8),
+      node.lng.toFixed(8),
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'mst_nodes.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadEdgesCsv = () => {
+    if (mstEdges.length === 0) return;
+
+    const headers = [
+      'start_lat',
+      'start_lng',
+      'end_lat',
+      'end_lng',
+      'length_meters',
+      'voltage',
+    ];
+
+    const rows = mstEdges.map((edge) => [
+      edge.start.lat.toFixed(8),
+      edge.start.lng.toFixed(8),
+      edge.end.lat.toFixed(8),
+      edge.end.lng.toFixed(8),
+      Math.round(edge.lengthMeters), // or keep decimals: edge.lengthMeters.toFixed(2)
+      edge.voltage,
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'mst_edges.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className='min-h-screen overflow-hidden bg-zinc-950 text-white'>
       {/* Hero Header – unchanged */}
@@ -534,7 +603,7 @@ export default function DemoPage() {
           <div className='mb-8 inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-6 py-2 backdrop-blur-md'>
             <span className='text-2xl'>🚀</span>
             <span className='text-sm font-medium tracking-[4px] uppercase'>
-              C4G - Renewvia Energy
+              C4G - Renewvia Energy Project
             </span>
           </div>
 
@@ -737,6 +806,10 @@ export default function DemoPage() {
               : 'Run Optimization Algorithm'}
           </button>
 
+          <p className='mt-4 text-center text-sm text-zinc-500'>
+            In beta testing until April 26th 2026.
+          </p>
+
           {calculationResult && (
             <div className='mt-8 rounded bg-zinc-800 p-6'>
               <h4 className='mb-4 text-xl font-semibold'>
@@ -809,10 +882,6 @@ export default function DemoPage() {
                 </p>
               </div>
             </div>
-
-            <p className='mt-6 text-center text-xs text-zinc-500'>
-              Based on MST great-circle distances • pole count ≈ edges + 1
-            </p>
           </div>
         )}
 
@@ -836,11 +905,11 @@ export default function DemoPage() {
       {dataPoints.length > 0 && (
         <section className='mx-auto max-w-7xl px-6 py-12'>
           <h3 className='mb-6 text-2xl font-bold text-white'>
-            Location Points ({dataPoints.length})
+            Nodes ({mstNodes.length})
           </h3>
           <div className='rounded-lg border border-zinc-700 bg-zinc-900/50 p-6 backdrop-blur-sm'>
             <div className='font-mono text-sm text-zinc-300'>
-              {dataPoints.map((point, index) => (
+              {mstNodes.map((point, index) => (
                 <div key={index} className='mb-1'>
                   {index + 1}. {point.name} - Lat: {point.lat.toFixed(8)}, Lng:{' '}
                   {point.lng.toFixed(8)}
@@ -851,9 +920,40 @@ export default function DemoPage() {
         </section>
       )}
 
+      {/* Download Data Buttons */}
+      {costBreakdown && mstNodes.length > 0 && (
+        <section className='mx-auto max-w-7xl px-6 py-12'>
+          <div className='mx-auto mt-8 max-w-2xl rounded-lg border border-zinc-700 bg-zinc-900/50 p-6 backdrop-blur-sm'>
+            <h4 className='mb-5 text-center text-xl font-semibold text-emerald-300'>
+              Export Results
+            </h4>
+
+            <div className='flex flex-col justify-center gap-5 sm:flex-row'>
+              <button
+                onClick={downloadNodesCsv}
+                className='flex-1 rounded bg-emerald-600 px-10 py-4 text-center font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none'
+                disabled={mstNodes.length === 0}
+              >
+                Download Nodes CSV
+              </button>
+
+              <button
+                onClick={downloadEdgesCsv}
+                className='flex-1 rounded bg-blue-600 px-10 py-4 text-center font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none'
+                disabled={mstEdges.length === 0}
+              >
+                Download Edges CSV
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Footer */}
       <footer className='border-t border-zinc-800 py-12 text-center text-sm text-zinc-500'>
-        <p>© 2026 Renewvia • CS 6150 Computing For Good • Project Demo</p>
+        <p>
+          © 2026 • CS 6150 Computing For Good • Renewvia Project • Demo Page
+        </p>
       </footer>
     </div>
   );
