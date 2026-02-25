@@ -17,20 +17,16 @@ export default function ProjectDescriptionPage() {
           <div className='mb-6 inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-6 py-2 backdrop-blur-md'>
             <span className='text-2xl'>☀️</span>
             <span className='text-sm font-medium tracking-[4px] uppercase'>
-              C4G - Renewvia Energy
+              C4G - Renewvia Energy Project
             </span>
           </div>
 
-          <h1 className='mb-4 text-6xl font-bold tracking-tighter md:text-7xl'>
+          <h1 className='mb-6 text-6xl font-bold tracking-tighter md:text-7xl lg:text-8xl'>
             Project Description
           </h1>
           <p className='text-3xl font-light text-emerald-100 md:text-4xl'>
             Solar Mini-Grid Powerline Distribution Networks
           </p>
-
-          <div className='mt-8 text-xl font-light tracking-wide text-emerald-200'>
-            CS 6150 • Computing For Good
-          </div>
 
           <div className='mt-12 flex justify-center'>
             <div className='flex items-center gap-6 rounded-3xl border border-white/20 bg-white/10 px-8 py-4 text-sm backdrop-blur-xl'>
@@ -75,13 +71,17 @@ export default function ProjectDescriptionPage() {
               Partner:{' '}
               <span className='font-medium text-emerald-400'>
                 Nicholas Selby
-              </span>{' '}
-              —{' '}
+              </span>
+            </p>
+            <p>
+              Website:{' '}
               <a
-                href='mailto:nicholas.selby@renewvia.com'
-                className='underline hover:text-emerald-300'
+                href='https://www.renewvia.com/'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-emerald-300 underline underline-offset-4 hover:text-emerald-200'
               >
-                nicholas.selby@renewvia.com
+                https://www.renewvia.com/
               </a>
             </p>
           </div>
@@ -186,7 +186,7 @@ export default function ProjectDescriptionPage() {
       {/* Footer */}
       <footer className='border-t border-zinc-800 py-12 text-center text-sm text-zinc-500'>
         <p>
-          © 2026 Renewvia • CS 6150 Computing For Good • Solar Mini-Grid Project
+          © 2026 • CS 6150 Computing For Good • Renewvia Project • Presentation
         </p>
       </footer>
     </div>

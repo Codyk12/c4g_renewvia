@@ -17,7 +17,7 @@ export default function LighthouseReportPage() {
           <div className='mb-8 inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-6 py-2 backdrop-blur-md'>
             <span className='text-2xl'>📊</span>
             <span className='text-sm font-medium tracking-[4px] uppercase'>
-              C4G - Renewvia Energy
+              C4G - Renewvia Energy Project
             </span>
           </div>
 
@@ -39,9 +39,9 @@ export default function LighthouseReportPage() {
               Performance & Quality Report
             </h2>
             <p className='mx-auto mb-12 max-w-3xl text-xl leading-relaxed text-zinc-300 md:text-2xl'>
-              This page will display Lighthouse audit results including
-              performance scores, accessibility, best practices, SEO, and Core
-              Web Vitals for the Renewvia project documentation site.
+              This page displays Lighthouse audit results including performance
+              scores, accessibility, best practices, SEO, and Core Web Vitals
+              for this C4G Renewvia Project documentation site.
             </p>
 
             <div className='mx-auto grid max-w-5xl grid-cols-1 gap-6 text-left sm:grid-cols-2 lg:grid-cols-4'>
@@ -73,26 +73,16 @@ export default function LighthouseReportPage() {
                 <div className='text-4xl font-bold text-white'>100</div>
               </div>
             </div>
-
-            <p className='mt-16 text-lg text-zinc-400'>
-              Reports will be updated after major site changes or before key
-              milestones.
-            </p>
           </div>
-        </div>
-
-        {/* Small context footer */}
-        <div className='mx-auto mt-20 max-w-3xl text-center text-base text-zinc-500'>
-          <p>
-            Ensuring fast, accessible, and high-quality documentation for
-            Renewvia’s solar mini-grid optimization project.
-          </p>
         </div>
       </div>
 
       {/* Footer */}
       <footer className='border-t border-zinc-800 py-12 text-center text-sm text-zinc-500'>
-        <p>© 2026 Renewvia • CS 6150 Computing For Good • Lighthouse Report</p>
+        <p>
+          © 2026 • CS 6150 Computing For Good • Renewvia Project • Lighthouse
+          Report
+        </p>
       </footer>
     </div>
   );

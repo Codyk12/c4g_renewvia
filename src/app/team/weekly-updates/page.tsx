@@ -61,7 +61,7 @@ export default function WeeklyUpdatesPage() {
 
       {/* Footer */}
       <footer className='border-t border-zinc-800 py-12 text-center text-sm text-zinc-500'>
-        <p>© 2026 Renewvia • CS 6150 Computing For Good • Weekly Updates</p>
+        <p>© 2026 • CS 6150 Computing For Good • Weekly Updates</p>
       </footer>
     </div>
   );

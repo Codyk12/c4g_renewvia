@@ -10,7 +10,7 @@ const tabs = [
   { name: 'Project Goal', href: '/team/project-goal' },
   { name: 'Lighthouse Report', href: '/team/lighthouse-report' },
   { name: 'Presentation Slides', href: '/team/presentation-slides' },
-  { name: 'Weekly Updates', href: '/team/weekly-updates' },
+  // { name: 'Weekly Updates', href: '/team/weekly-updates' },
   { name: 'Project Peer Evaluations', href: '/team/peer-evaluations' },
   { name: 'Demo', href: '/team/demo' },
 ];
