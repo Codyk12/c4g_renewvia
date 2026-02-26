@@ -17,6 +17,7 @@ const formatUSD = (v: number) =>
 
 interface LocationPoint {
   name: string;
+  type: 'source' | 'destination' | 'pole';
   lat: number;
   lng: number;
 }
@@ -33,7 +34,7 @@ interface MSTNode {
   lat: number;
   lng: number;
   name: string;
-  type: 'source' | 'building' | 'pole';
+  type: 'source' | 'destination' | 'pole';
 }
 
 interface CostBreakdown {
@@ -97,99 +98,103 @@ export default function DemoPage() {
     setMap(googleMap);
   };
 
+  // Helper to create a consistent marker for any point/node
+  const createMarker = (
+    point: {
+      lat: number;
+      lng: number;
+      name: string;
+      type?: 'source' | 'destination' | 'pole';
+    },
+    map: google.maps.Map
+  ) => {
+    const type = point.type || 'destination'; // raw uploaded points → treat as 'destination'
+
+    let iconUrl = 'http://maps.google.com/mapfiles/ms/icons/';
+    let labelColor = 'white';
+    let scaledSize = new google.maps.Size(36, 36);
+    let fontSize = '13px';
+
+    switch (type) {
+      case 'source':
+        iconUrl += 'green-dot.png';
+        labelColor = '#00ff00'; // bright green
+        scaledSize = new google.maps.Size(44, 44);
+        break;
+
+      case 'destination':
+        iconUrl += 'blue-dot.png';
+        labelColor = 'white';
+        // keep default size
+        break;
+
+      case 'pole':
+        iconUrl += 'yellow-dot.png';
+        scaledSize = new google.maps.Size(28, 28);
+        fontSize = '11px';
+        labelColor = '#ffff99'; // light yellow for visibility
+        break;
+
+      default:
+        iconUrl += 'red-dot.png';
+    }
+
+    const marker = new google.maps.Marker({
+      position: { lat: point.lat, lng: point.lng },
+      map,
+      label: {
+        text: point.name,
+        color: labelColor,
+        fontSize,
+        fontWeight: 'bold',
+      },
+      icon: { url: iconUrl, scaledSize },
+      title: point.type ? `${point.name} (${point.type})` : point.name,
+      optimized: !!point.type, // optional: can use later if needed
+    });
+
+    return marker;
+  };
+
   // Add markers and fit bounds whenever dataPoints or map changes
-  // Effect 1: Draw / update markers (runs when dataPoints or map changes)
+  // Optimized Markers useEffect – single unified logic
   useEffect(() => {
     if (!map) return;
 
-    // Clear old markers
-    markersRef.current.forEach((m) => m.setMap(null));
+    // 1. Clear all previous markers
+    markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
+
+    // 2. Choose which dataset to display
+    const pointsToShow = mstNodes.length > 0 ? mstNodes : dataPoints;
+
+    if (pointsToShow.length === 0) return;
 
     const bounds = new google.maps.LatLngBounds();
     let hasValidPoints = false;
 
-    // Case 1: Show raw uploaded points if no MST result yet
-    if (mstNodes.length === 0 && dataPoints.length > 0) {
-      dataPoints.forEach((point) => {
-        if (isNaN(point.lat) || isNaN(point.lng)) return;
-        hasValidPoints = true;
+    // 3. Create markers + extend bounds
+    pointsToShow.forEach((point) => {
+      if (isNaN(point.lat) || isNaN(point.lng)) {
+        return;
+      }
 
-        const marker = new google.maps.Marker({
-          position: { lat: point.lat, lng: point.lng },
-          map,
-          label: {
-            text: point.name,
-            color: 'white',
-            fontSize: '13px',
-            fontWeight: 'bold',
-          },
-          icon: {
-            url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
-            scaledSize: new google.maps.Size(36, 36),
-          },
-          title: point.name,
-        });
-
-        markersRef.current.push(marker);
-        bounds.extend({ lat: point.lat, lng: point.lng });
-      });
-    }
-
-    // Case 2: Show optimized nodes (source + buildings + poles)
-    else if (mstNodes.length > 0) {
       hasValidPoints = true;
-      mstNodes.forEach((node) => {
-        if (isNaN(node.lat) || isNaN(node.lng)) return;
 
-        let iconUrl = 'http://maps.google.com/mapfiles/ms/icons/';
-        let labelColor = 'white';
-        let scaledSize = new google.maps.Size(36, 36);
+      const marker = createMarker(point, map);
+      markersRef.current.push(marker);
 
-        switch (node.type) {
-          case 'source':
-            iconUrl += 'green-dot.png';
-            labelColor = '#00ff00';
-            scaledSize = new google.maps.Size(44, 44);
-            break;
-          case 'building':
-            iconUrl += 'blue-dot.png';
-            break;
-          case 'pole':
-            iconUrl += 'yellow-dot.png';
-            scaledSize = new google.maps.Size(28, 28);
-            break;
-          default:
-            iconUrl += 'red-dot.png';
-        }
+      bounds.extend({ lat: point.lat, lng: point.lng });
+    });
 
-        const marker = new google.maps.Marker({
-          position: { lat: node.lat, lng: node.lng },
-          map,
-          label: {
-            text: node.name,
-            color: labelColor,
-            fontSize: node.type === 'pole' ? '11px' : '13px',
-            fontWeight: 'bold',
-          },
-          icon: { url: iconUrl, scaledSize },
-          title: `${node.name} (${node.type})`,
-        });
-
-        markersRef.current.push(marker);
-        bounds.extend({ lat: node.lat, lng: node.lng });
-      });
-    }
-
-    // Always try to fit bounds if we have something to show
+    // 4. Fit map bounds if we have valid points
     if (hasValidPoints && !bounds.isEmpty()) {
-      // Add a small delay to ensure map is ready for fitBounds
+      // Slight delay helps when map is still initializing / resizing
       setTimeout(() => {
         map.fitBounds(bounds, { bottom: 80, left: 80, right: 80, top: 80 });
-      }, 100);
+      }, 120);
     }
-  }, [map, dataPoints, mstNodes]);
-
+  }, [map, dataPoints, mstNodes]); // dependencies are correct
   // Draw lines on map
   useEffect(() => {
     if (!map) return;
@@ -218,20 +223,36 @@ export default function DemoPage() {
 
   // fit map to uploaded points immediately (before optimization)
   useEffect(() => {
-    if (!map || dataPoints.length === 0 || mstNodes.length > 0) return; // skip if MST already drawn
+    if (!map) return;
+
+    // Clear previous markers
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
 
     const bounds = new google.maps.LatLngBounds();
+    let hasValidPoints = false;
 
-    dataPoints.forEach((point) => {
-      if (!isNaN(point.lat) && !isNaN(point.lng)) {
-        bounds.extend({ lat: point.lat, lng: point.lng });
-      }
+    // Decide which list to render
+    const pointsToShow = mstNodes.length > 0 ? mstNodes : dataPoints;
+
+    pointsToShow.forEach((point) => {
+      if (isNaN(point.lat) || isNaN(point.lng)) return;
+      hasValidPoints = true;
+
+      const marker = createMarker(point, map);
+      markersRef.current.push(marker);
+
+      bounds.extend({ lat: point.lat, lng: point.lng });
     });
 
-    if (!bounds.isEmpty()) {
-      map.fitBounds(bounds, { bottom: 80, left: 80, right: 80, top: 80 });
+    // Fit bounds if we have valid points
+    if (hasValidPoints && !bounds.isEmpty()) {
+      // Small delay helps avoid race conditions with map init
+      setTimeout(() => {
+        map.fitBounds(bounds, { bottom: 80, left: 80, right: 80, top: 80 });
+      }, 150);
     }
-  }, [map, dataPoints]); // only when raw points change
+  }, [map, dataPoints, mstNodes]);
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -263,6 +284,7 @@ export default function DemoPage() {
           const parsedPoints: LocationPoint[] = rows
             .map((row) => {
               const name = row.name?.trim() || row['name'] || 'Unnamed';
+              const type = row.type?.trim() || row['type'] || 'Unknown';
               const latStr = row.latitude || row.lat || '';
               const lngStr = row.longitude || row.lng || row.logitude || '';
 
@@ -282,7 +304,7 @@ export default function DemoPage() {
                 // Still accept but warn - could make this stricter if needed
               }
 
-              return { name, lat, lng };
+              return { name, type, lat, lng };
             })
             .filter((p): p is LocationPoint => p !== null);
 
@@ -290,7 +312,8 @@ export default function DemoPage() {
 
           if (parsedPoints.length === 0) {
             setError(
-              'No valid rows found. Expected columns: Name, Latitude, Longitude (case-insensitive). Make sure lat/lng are numbers.'
+              'No valid rows found. Expected columns: Name, Type, Latitude, Longitude (case-insensitive). ' +
+                'Make sure lat/lng are numbers and Type is either "source" or "destination".'
             );
             setDataPoints([]); // ensure old markers stay cleared
           } else {
@@ -335,6 +358,7 @@ export default function DemoPage() {
 
     while (points.length < count && attempts < maxAttempts) {
       // Generate coordinates with high precision
+
       const latOffset = (Math.random() - 0.5) * latRange * 2;
       const lngOffset = (Math.random() - 0.5) * lngRange * 2;
 
@@ -350,8 +374,15 @@ export default function DemoPage() {
       );
 
       if (!isDuplicate) {
+        const type = points.length === 0 ? 'source' : 'destination';
+        const name =
+          points.length === 0
+            ? 'Source'
+            : `Destination ${String(points.length + 1).padStart(2, '0')}`;
+
         points.push({
-          name: `Location_${String(points.length + 1).padStart(2, '0')}`,
+          name: name,
+          type,
           lat,
           lng,
         });
@@ -618,7 +649,7 @@ export default function DemoPage() {
 
       <main className='mx-auto max-w-7xl px-6 py-12'>
         <h2 className='mb-6 text-4xl font-bold'>
-          Mini-Grid Locations (Satellite View)
+          Mini-Grid Optimization Coordinate and Edges Generation
         </h2>
 
         {/* Upload UI */}
@@ -628,14 +659,16 @@ export default function DemoPage() {
           </label>
           <p className='mb-4 text-sm text-zinc-400'>
             Expected columns: <code className='text-emerald-300'>Name</code>,{' '}
+            <code className='text-emerald-300'>Type</code>,{' '}
             <code className='text-emerald-300'>Latitude</code>,{' '}
             <code className='text-emerald-300'>Longitude</code>{' '}
             (case-insensitive)
           </p>
           <p className='mb-4 text-sm text-zinc-500'>
-            Example:{' '}
+            Example: <br />
             <code className='text-blue-300'>
-              Georgia Tech,33.77728650,-84.39617097
+              Georgia Tech, source, 33.77728650, -84.39617097 <br />
+              Building 1, destination, 33.77798650, -84.39613097
             </code>
           </p>
 
@@ -733,7 +766,7 @@ export default function DemoPage() {
 
         {/* Cost Inputs & Calculate Section */}
         <div className='mt-12 rounded-lg border border-zinc-700 bg-zinc-900/50 p-8 backdrop-blur-sm'>
-          <h3 className='mb-6 text-3xl font-bold'>Mini-Grid Optimization</h3>
+          <h3 className='mb-6 text-3xl font-bold'>Input Variables</h3>
           <p className='mb-6 text-zinc-300'>
             Enter approximate costs per unit. The algorithm will process these
             values as hyperparameters and calculate locations for Poles, Wire,
@@ -824,10 +857,18 @@ export default function DemoPage() {
           {calcError && <p className='mt-6 text-red-400'>{calcError}</p>}
         </div>
 
+        {/* Map container */}
+        <div
+          ref={mapRef}
+          className='mt-8 h-[70vh] w-full rounded-xl border border-zinc-700 shadow-2xl'
+        >
+          Loading satellite map...
+        </div>
+
         {costBreakdown && (
           <div className='mt-8 rounded-lg border border-emerald-700/30 bg-zinc-900/70 p-6 backdrop-blur-sm'>
             <h4 className='mb-4 text-xl font-semibold text-emerald-300'>
-              Estimated Mini-Grid Costs (Real Distance)
+              Estimated Mini-Grid Costs
             </h4>
 
             {/* Summary Totals */}
@@ -885,14 +926,6 @@ export default function DemoPage() {
           </div>
         )}
 
-        {/* Map container */}
-        <div
-          ref={mapRef}
-          className='mt-8 h-[70vh] w-full rounded-xl border border-zinc-700 shadow-2xl'
-        >
-          Loading satellite map...
-        </div>
-
         {/* Script loader */}
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`}
@@ -901,22 +934,51 @@ export default function DemoPage() {
         />
       </main>
 
-      {/* Locations List */}
+      {/* Nodes List – Collapsible */}
       {dataPoints.length > 0 && (
         <section className='mx-auto max-w-7xl px-6 py-12'>
-          <h3 className='mb-6 text-2xl font-bold text-white'>
-            Nodes ({mstNodes.length})
-          </h3>
-          <div className='rounded-lg border border-zinc-700 bg-zinc-900/50 p-6 backdrop-blur-sm'>
-            <div className='font-mono text-sm text-zinc-300'>
-              {mstNodes.map((point, index) => (
-                <div key={index} className='mb-1'>
-                  {index + 1}. {point.name} - Lat: {point.lat.toFixed(8)}, Lng:{' '}
-                  {point.lng.toFixed(8)}
-                </div>
-              ))}
+          <details className='group'>
+            <summary className='flex cursor-pointer items-center justify-between rounded-lg border border-zinc-700 bg-zinc-900/70 px-6 py-4 text-xl font-bold text-white transition hover:bg-zinc-800/70'>
+              <h3>
+                Source, Destination, and Generated Pole Coordinates (
+                {mstNodes.length || dataPoints.length})
+              </h3>
+              <span className='text-2xl font-light transition-transform group-open:rotate-180'>
+                ▼
+              </span>
+            </summary>
+
+            <div className='mt-4 rounded-lg border border-zinc-700 bg-zinc-900/50 p-6 backdrop-blur-sm'>
+              <div className='max-h-[60vh] overflow-y-auto font-mono text-sm text-zinc-300'>
+                {(mstNodes.length > 0 ? mstNodes : dataPoints).map(
+                  (point, index) => (
+                    <div key={index} className='mb-1.5 leading-relaxed'>
+                      {index + 1}.{' '}
+                      <span className='font-semibold text-emerald-300'>
+                        {point.name}
+                      </span>
+                      {' – Lat: '}
+                      <span className='text-blue-300'>
+                        {point.lat.toFixed(8)}
+                      </span>
+                      ,{' Lng: '}
+                      <span className='text-blue-300'>
+                        {point.lng.toFixed(8)}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* Optional footer info */}
+              {mstNodes.length > 0 && (
+                <p className='mt-4 text-center text-xs text-zinc-500'>
+                  Showing optimized nodes (source + destinations + poles).
+                  Scroll for full list.
+                </p>
+              )}
             </div>
-          </div>
+          </details>
         </section>
       )}
 

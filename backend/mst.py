@@ -8,7 +8,7 @@ from scipy.spatial.distance import cdist
 from pydantic import BaseModel
 
 # CONSTANTS
-MAX_HOUSE_TO_POLE = 100.0  # METERS
+MAX_DESTINATION_TO_POLE = 100.0  # METERS
 MAX_POLE_TO_POLE = 150.0  # METERS
 
 
@@ -37,77 +37,54 @@ def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> floa
     return R * c
 
 
-def generate_voronoi_candidates(
-        coords: np.ndarray,
-        min_dist_to_terminal: float = 8.0,
-        max_circumradius: float = None
-) -> np.ndarray:
-    """Generate candidate pole locations at Voronoi vertices of terminal points.
-
-    Uses haversine distance for realistic geographic filtering.
-
-    Args:
-        coords (np.ndarray): Array of shape (n, 2) with [lat, lng] for terminals.
-        min_dist_to_terminal (float, optional): Minimum haversine distance to any terminal (meters).
-            Defaults to 8.0 meters.
-        max_circumradius (float, optional): Maximum allowed approximate circumradius (meters).
-            If None, no limit.
-
-    Returns:
-        np.ndarray: Array of candidate [lat, lng] positions (may be empty).
-    """
+def generate_voronoi_candidates(coords: np.ndarray, min_dist_to_terminal=8.0, max_circumradius=None):
     if len(coords) < 3:
-        return np.empty((0, 2))
+        return np.empty((0, 2), dtype=float)
 
     vor = Voronoi(coords)
-    candidates = []
+    if len(vor.vertices) == 0:
+        return np.empty((0, 2), dtype=float)
 
-    # Vectorized haversine helper for a single vertex against all points
-    def haversine_to_all(vertex_lat: float, vertex_lng: float) -> np.ndarray:
-        lats = coords[:, 0]
-        lngs = coords[:, 1]
-        R = 6371000.0
+    verts = vor.vertices  # shape (n_vertices, 2)
 
-        phi1 = np.radians(vertex_lat)
-        phi2 = np.radians(lats)
-        dphi = np.radians(lats - vertex_lat)
-        dlam = np.radians(lngs - vertex_lng)
+    # ─── Vectorized haversine: all vertices → all original points ───────
+    lat_v = verts[:, 0, np.newaxis]           # (n_v, 1)
+    lng_v = verts[:, 1, np.newaxis]
+    lat_o = coords[:, 0]                      # (n_o,)
+    lng_o = coords[:, 1]
 
-        a = np.sin(dphi / 2) ** 2 + np.cos(phi1) * np.cos(phi2) * np.sin(dlam / 2) ** 2
-        c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-        return R * c
+    phi_v = np.radians(lat_v)
+    phi_o = np.radians(lat_o)
+    dphi = np.radians(lat_o - lat_v)
+    dlam = np.radians(lng_o - lng_v)
 
-    for vertex in vor.vertices:
-        lat_v, lng_v = vertex
+    a = np.sin(dphi/2)**2 + np.cos(phi_v)*np.cos(phi_o)*np.sin(dlam/2)**2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    dists = 6371000.0 * c                     # shape (n_vertices, n_original)
 
-        # Compute haversine distances from this vertex to all original points
-        dists = haversine_to_all(lat_v, lng_v)
+    # For each vertex: distance to its 3 nearest terminals
+    nearest_dists = np.partition(dists, 2, axis=1)[:, :3]   # (n_v, 3)
+    min_dists = nearest_dists[:, 0]
+    third_min_dists = nearest_dists[:, 2]
 
-        # Get the three smallest distances
-        nearest_idx = np.argsort(dists)[:3]
-        nearest_dists = dists[nearest_idx]
+    mask = min_dists >= min_dist_to_terminal
 
-        if np.min(nearest_dists) < min_dist_to_terminal:
-            continue
+    if max_circumradius is not None:
+        mask &= (third_min_dists <= max_circumradius)
 
-        if max_circumradius is not None and nearest_dists[2] > max_circumradius:
-            continue
+    candidates = verts[mask]
 
-        candidates.append(vertex)
+    if len(candidates) > 0:
+        # Deduplicate (rounding still reasonable for geographic use)
+        candidates = np.unique(np.round(candidates, decimals=6), axis=0)
 
-    if candidates:
-        candidates = np.array(candidates)
-        # Deduplicate with reasonable precision for geographic coords
-        _, unique_idx = np.unique(np.round(candidates, decimals=5), axis=0, return_index=True)
-        candidates = candidates[unique_idx]
-
-    print(f"Generated {len(candidates)} Voronoi candidate poles")
+    print(f"Generated {len(candidates)} Voronoi candidate poles (from {len(verts)} vertices)")
     return candidates
 
 
 def build_directed_graph_for_arborescence(
         source_idx,
-        house_indices,
+        destination_indices,
         pole_indices,
         dist_matrix,
         costs,
@@ -116,21 +93,21 @@ def build_directed_graph_for_arborescence(
     Builds a directed graph for use in finding a minimum-cost arborescence given
     a set of coordinates, indices, and constraints.
 
-    This function constructs a directed graph where poles and houses are represented
+    This function constructs a directed graph where poles and destinations are represented
     as nodes, and edges represent potential connections between them. Different weight
-    and voltage attributes are applied to the edges depending on their type (pole-to-house,
-    pole-to-pole, or source-to-pole/house connections).
+    and voltage attributes are applied to the edges depending on their type (pole-to-destination,
+    pole-to-pole, or source-to-pole/destination connections).
 
     Args:
         source_idx: Integer index representing the source node (e.g., a substation).
-        house_indices: List of integers representing indices of all houses.
+        destination_indices: List of integers representing indices of all destinations.
         pole_indices: List of integers representing indices of all poles.
         dist_matrix: 2D matrix where each element represents the distance between nodes.
         costs: Dictionary storing cost values for graph construction. Specifically,
                it should include the `"poleCost"` key to determine the cost addition
                for pole-to-pole connections.
-        max_house_to_pole: Optional; Maximum distance (float) allowed between a pole
-                           and a house for adding an edge. Default is 80.0.
+        max_destination_to_pole: Optional; Maximum distance (float) allowed between a pole
+                           and a destination for adding an edge. Default is 80.0.
         max_pole_to_pole: Optional; Maximum distance (float) allowed between two poles
                           for adding an edge. Default is 150.0.
 
@@ -144,11 +121,11 @@ def build_directed_graph_for_arborescence(
 
     DG = nx.DiGraph()
 
-    # Directed: poles → houses (service drops)
+    # Directed: poles → destinations (service drops)
     for p in pole_indices:
-        for h in house_indices:
+        for h in destination_indices:
             d = dist_matrix[p, h]
-            if 0.1 < d <= MAX_HOUSE_TO_POLE:
+            if 0.1 < d <= MAX_DESTINATION_TO_POLE:
                 w = d  # TODO: Adjust weight based on costs
                 DG.add_edge(p, h, weight=w, length=d, voltage="low")
 
@@ -172,19 +149,19 @@ def build_directed_graph_for_arborescence(
     return DG
 
 
-def prune_dead_end_pole_branches(arbo: nx.DiGraph, pole_indices: list, house_indices) -> nx.DiGraph:
+def prune_dead_end_pole_branches(arbo: nx.DiGraph, pole_indices: list, destination_indices) -> nx.DiGraph:
     """
     Prunes dead-end pole branches in a Directed Graph (DiGraph).
 
     This function removes leaf nodes in the provided graph that represent poles and do not serve
-    any house nodes in their subtree. The pruning process continues iteratively until no such
+    any destination nodes in their subtree. The pruning process continues iteratively until no such
     dead-end poles remain in the graph. It modifies a copy of the input graph without affecting
     the original.
 
     Args:
         arbo (nx.DiGraph): A directed graph representing the network structure.
         pole_indices (list): A list of node indices representing poles in the graph.
-        house_indices (list): A list of node indices representing houses in the graph.
+        destination_indices (list): A list of node indices representing destinations in the graph.
 
     Returns:
         nx.DiGraph: A new directed graph with dead-end pole branches removed.
@@ -196,10 +173,10 @@ def prune_dead_end_pole_branches(arbo: nx.DiGraph, pole_indices: list, house_ind
         leaves = [n for n in arbo.nodes() if arbo.out_degree(n) == 0]
         for leaf in leaves:
             if leaf in pole_indices:
-                # Check if this leaf (or its subtree) serves any house
+                # Check if this leaf (or its subtree) serves any destination
                 descendants = nx.descendants(arbo, leaf) | {leaf}
-                if not any(d in house_indices for d in descendants):
-                    # No house served → safe to remove
+                if not any(d in destination_indices for d in descendants):
+                    # No destination served → safe to remove
                     predecessors = list(arbo.predecessors(leaf))
                     for pred in predecessors:
                         arbo.remove_edge(pred, leaf)
@@ -219,11 +196,81 @@ class OptimizationRequest(BaseModel):
     costs: Dict[str, float]
 
 
+def parse_input(request: OptimizationRequest):
+    """
+    Parses input request containing information about geographical points, costs, and their attributes to generate structured
+    data suitable for optimization tasks.
+
+    This function processes the input `OptimizationRequest` to extract coordinates, their names, and classify one of the 
+    locations as the "Power Source". It ensures that the input contains at least two valid points, assigns a "Power Source"
+    if not explicitly provided, and organizes the remaining points as destinations. The function also validates and cleans input 
+    data for consistency.
+    
+    Args:
+        request: Input request containing points and their associated costs
+        
+    Returns: 
+        A tuple containing coords, destination_indices, source_idx, original_names, costs
+    """
+
+    points = request.points
+    costs = request.costs.copy()  # defensive copy
+
+    if len(points) < 2:
+        raise ValueError("At least 2 points required")
+
+    coords_list = []
+    names = []
+    source_idx = None
+
+    SOURCE_KEYWORDS = {
+        "power source", "powersource", "source", "substation", "main source",
+        "primary", "generator", "grid tie", "utility"
+    }
+
+    for i, p in enumerate(points):
+        try:
+            lat = float(p["lat"])
+            lng = float(p["lng"])
+        except (KeyError, TypeError, ValueError) as e:
+            raise ValueError(f"Point {i+1} missing/invalid lat/lng: {p}") from e
+
+        if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+            raise ValueError(f"Point {i+1} has invalid coordinates: ({lat}, {lng})")
+
+        coords_list.append([lat, lng])
+
+        # Name handling
+        raw_name = p.get("name")
+        name = str(raw_name).strip() if raw_name is not None else f"Location {i+1}"
+        names.append(name)
+
+        # Source detection (case-insensitive, more flexible)
+        name_lower = name.lower()
+        if any(kw in name_lower for kw in SOURCE_KEYWORDS) or "source" in name_lower:
+            if source_idx is not None:
+                print(f"Warning: Multiple potential sources detected; using first (index {source_idx})")
+            else:
+                source_idx = i
+                names[i] = "Power Source"  # canonical name
+
+    coords = np.array(coords_list, dtype=np.float64)
+
+    if source_idx is None:
+        print("No explicit power source found → using first point (index 0)")
+        source_idx = 0
+        names[0] = "Power Source"
+
+    destination_indices = [i for i in range(len(coords)) if i != source_idx]
+
+    return coords, destination_indices, source_idx, names, costs
+    
+
 def compute_mst(request: OptimizationRequest) -> Dict[str, Any]:
     """Compute a realistic power distribution network using MST with intermediate poles.
 
     Uses Voronoi vertices as candidate pole locations.
-    Enforces no direct house-to-house connections.
+    Enforces no direct destination-to-destination connections.
     Dynamically identifies the "Power Source" point by name.
     Returns edges, nodes, lengths, and cost estimates.
 
@@ -233,46 +280,8 @@ def compute_mst(request: OptimizationRequest) -> Dict[str, Any]:
     Returns:
         Dict[str, Any]: Result with edges, nodes, totals, costs, and debug info.
     """
-    points = request.points
-    costs = request.costs
-
-    # ─── Parse points in one pass ───────────────────────────────────────────
-    original_coords = []
-    original_names = []
-    source_idx = None
-
-    for p in points:
-        try:
-            lat = float(p.get("lat"))
-            lng = float(p.get("lng"))
-            name = p.get("name")
-
-        except (TypeError, ValueError):
-            raise ValueError("Invalid point format")
-
-        coord = [float(lat), float(lng)]
-        original_coords.append(coord)
-
-        display_name = str(name) if name else "Building"
-        cleaned_name = display_name.strip().lower()
-
-        if "power source" in cleaned_name or cleaned_name == "powersource":
-            if source_idx is not None:
-                print("Warning: Multiple 'Power Source' points found; using first.")
-            source_idx = len(original_coords) - 1
-            display_name = "Power Source"
-
-        original_names.append(display_name)
-
-    if len(original_coords) < 2:
-        raise ValueError("Need at least 2 valid points with numeric lat/lng")
-
-    if source_idx is None:
-        source_idx = 0
-        original_names[0] = "Power Source"
-
-    coords = np.array(original_coords)
-    house_indices = [i for i in range(len(coords)) if i != source_idx]
+    # ─── Process input ────────────────────────────────────────────────
+    coords, destination_indices, source_idx, original_names, costs = parse_input(request)
 
     # ─── Generate candidates ────────────────────────────────────────────────
     candidates = generate_voronoi_candidates(
@@ -299,7 +308,7 @@ def compute_mst(request: OptimizationRequest) -> Dict[str, Any]:
 
     DG = build_directed_graph_for_arborescence(
         source_idx=source_idx,
-        house_indices=house_indices,
+        destination_indices=destination_indices,
         pole_indices=pole_indices,
         dist_matrix=dist_matrix,  # you already compute this
         costs=costs,
@@ -307,8 +316,8 @@ def compute_mst(request: OptimizationRequest) -> Dict[str, Any]:
 
     arbo = nx.minimum_spanning_arborescence(DG, attr="weight", preserve_attrs=True, default=1e18)
 
-    # remove degree 0 poles
-    mst = prune_dead_end_pole_branches(arbo, pole_indices, house_indices)
+    # ─── Remove 0 degree poles ────────────────────────────────────────────────
+    mst = prune_dead_end_pole_branches(arbo, pole_indices, destination_indices)
 
     # ─── Extract used nodes & name poles ────────────────────────────────────
     used_nodes = {u for u, v in mst.edges()} | {v for u, v in mst.edges()}
@@ -371,7 +380,7 @@ def compute_mst(request: OptimizationRequest) -> Dict[str, Any]:
                 "lat": float(extended_coords[i][0]),
                 "lng": float(extended_coords[i][1]),
                 "name": node_names.get(i, f"Unused {i}"),
-                "type": "source" if i == source_idx else "home" if i < pole_start_idx else "pole"
+                "type": "source" if i == source_idx else "destination" if i < pole_start_idx else "pole"
             }
             for i in sorted(used_nodes)
         ],
