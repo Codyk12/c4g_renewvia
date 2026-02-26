@@ -443,6 +443,7 @@ export default function DemoPage() {
       process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000/optimize';
 
     const startTime = performance.now();
+    const debug = true;
 
     try {
       const res = await fetch(backendUrl, {
@@ -459,6 +460,7 @@ export default function DemoPage() {
             lowVoltageCostPerMeter: lowVoltageCost || 0,
             highVoltageCostPerMeter: highVoltageCost || 0,
           },
+          debug: false,
         }),
       });
 
@@ -480,7 +482,9 @@ export default function DemoPage() {
 
       const data = await res.json();
 
-      // console.log('Optimization result:', data);
+      if (debug) {
+        console.log('Optimization result:', data);
+      }
 
       if (data.error) throw new Error(data.error);
 

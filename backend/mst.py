@@ -1,21 +1,29 @@
 # backend/mst.py
-from typing import List, Dict, Union, Any
-import networkx as nx
 import math
+from typing import Dict, Union, Any
+from typing import List
+
+import networkx as nx
 import numpy as np
+import pandas as pd
+from pydantic import BaseModel
 from scipy.spatial import Voronoi
 from scipy.spatial.distance import cdist
-from pydantic import BaseModel
+from shapely.geometry import Point
+from shapely.wkt import loads
+
+EXCLUSION_RADIUS_METERS = 15.0
+MIN_CANDIDATE_SEPARATION = 10.0
 
 # CONSTANTS in METERS
-MIN_DESTINATION_TO_POLE = 10.0
-MAX_DESTINATION_TO_POLE = 100.0
+MIN_POLE_TO_DESTINATION = 10.0
+MAX_POLE_TO_DESTINATION = 100.0
 
 MIN_POLE_TO_POLE = 10.0
 MAX_POLE_TO_POLE = 150.0
 
-MIN_DIST_TO_TERMINAL=8.0,
-MAX_CIRCUMRADIUS=300.0
+MIN_DIST_TO_TERMINAL = 8.0,
+MAX_CIRCUMRADIUS = 300.0
 
 
 def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -43,23 +51,22 @@ def haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> floa
     return R * c
 
 
-def generate_voronoi_candidates(coords: np.ndarray):
-    """
-    Generates candidate points based on a Voronoi diagram constructed from the input coordinates
-    and applies filtering criteria such as minimum and maximum distance thresholds. This is
-    typically used in geographic computations to identify poles from Voronoi vertices.
+def haversine_vec(A, B):
+    # A, B: (n, 2) arrays of [lat, lon]
+    lat1, lon1 = np.radians(A[:, 0]), np.radians(A[:, 1])
+    lat2, lon2 = np.radians(B[:, 0]), np.radians(B[:, 1])
+    dlat = lat2 - lat1[:, None]
+    dlon = lon2 - lon1[:, None]
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1[:, None]) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    return 6371000 * c  # shape (n_candidates, n_buildings)
 
-    Args:
-    coords: An array of shape (n, 2) where n is the number of coordinate points. Each row
-        represents a point with latitude and longitude as respective columns. The input must
-        contain at least 3 coordinate points for Voronoi computation.
-    Returns:
-        A numpy array of candidate points with shape (m, 2), where m is the number of
-        filtered candidate points. Each row represents a point with latitude and longitude as
-        respective columns. If no candidates meet the criteria, an empty array of shape (0, 2)
-        is returned.
-    """
 
+def generate_voronoi_candidates(coords: np.ndarray) -> np.ndarray:
+    """
+    Generates candidate pole locations from Voronoi vertices with filtering.
+    Final step: removes candidates closer than MIN_CANDIDATE_SEPARATION meters.
+    """
     if len(coords) < 3:
         return np.empty((0, 2), dtype=float)
 
@@ -69,23 +76,10 @@ def generate_voronoi_candidates(coords: np.ndarray):
 
     verts = vor.vertices  # shape (n_vertices, 2)
 
-    # ─── Vectorized haversine: all vertices → all original points ───────
-    lat_v = verts[:, 0, np.newaxis]           # (n_v, 1)
-    lng_v = verts[:, 1, np.newaxis]
-    lat_o = coords[:, 0]                      # (n_o,)
-    lng_o = coords[:, 1]
+    # Vectorized haversine distances from vertices to original points
+    dists = haversine_vec(verts, coords)  # assume you have this function
 
-    phi_v = np.radians(lat_v)
-    phi_o = np.radians(lat_o)
-    dphi = np.radians(lat_o - lat_v)
-    dlam = np.radians(lng_o - lng_v)
-
-    a = np.sin(dphi/2)**2 + np.cos(phi_v)*np.cos(phi_o)*np.sin(dlam/2)**2
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-    dists = 6371000.0 * c                     # shape (n_vertices, n_original)
-
-    # For each vertex: distance to its 3 nearest terminals
-    nearest_dists = np.partition(dists, 2, axis=1)[:, :3]   # (n_v, 3)
+    nearest_dists = np.partition(dists, 2, axis=1)[:, :3]
     min_dists = nearest_dists[:, 0]
     third_min_dists = nearest_dists[:, 2]
 
@@ -96,13 +90,46 @@ def generate_voronoi_candidates(coords: np.ndarray):
 
     candidates = verts[mask]
 
-    if len(candidates) > 0:
-        # Deduplicate (rounding still reasonable for geographic use)
-        candidates = np.unique(np.round(candidates, decimals=6), axis=0)
+    if len(candidates) == 0:
+        print("No Voronoi candidates after initial filtering")
+        return candidates
 
-    print(f"Generated {len(candidates)} Voronoi candidate poles (from {len(verts)} vertices)")
+    # ─── Step 1: Deduplicate with rounding (existing) ───────────────────────
+    candidates = np.unique(np.round(candidates, decimals=6), axis=0)
+
+    if len(candidates) <= 1:
+        print(f"Generated {len(candidates)} unique Voronoi candidate poles")
+        return candidates
+
+    # ─── Step 2: Enforce minimum separation (new) ───────────────────────────
+    # Sort by latitude for somewhat spatial order (helps greedy algorithm)
+    sort_idx = np.argsort(candidates[:, 0])
+    candidates = candidates[sort_idx]
+
+    # Greedy filter: keep point only if >= MIN distance from all kept points
+    kept = []
+    kept_array = np.empty((0, 2))
+
+    for pt in candidates:
+        if len(kept_array) == 0:
+            kept.append(pt)
+            kept_array = np.array([pt])
+            continue
+
+        # Compute distances to already kept points
+        dists_to_kept = haversine_vec(np.array([pt]), kept_array)[0]
+
+        if np.all(dists_to_kept >= MIN_CANDIDATE_SEPARATION):
+            kept.append(pt)
+            kept_array = np.vstack([kept_array, pt])
+
+    candidates = np.array(kept)
+
+    print(f"Generated {len(candidates)} Voronoi candidate poles "
+          f"after min {MIN_CANDIDATE_SEPARATION}m separation filter "
+          f"(from {len(vor.vertices)} vertices)")
+
     return candidates
-
 
 def build_directed_graph_for_arborescence(
         source_idx,
@@ -143,7 +170,7 @@ def build_directed_graph_for_arborescence(
     for p in pole_indices:
         for h in destination_indices:
             d = dist_matrix[p, h]
-            if 0.1 < d <= MAX_DESTINATION_TO_POLE:
+            if 0.1 < d <= MAX_POLE_TO_DESTINATION:
                 w = d  # TODO: Adjust weight based on costs
                 DG.add_edge(p, h, weight=w, length=d, voltage="low")
 
@@ -160,7 +187,7 @@ def build_directed_graph_for_arborescence(
     # Directed: source → poles (main trunk)
     for p in pole_indices:
         d = dist_matrix[source_idx, p]
-        if 0.1 < d <= MAX_POLE_TO_POLE * 1.5:
+        if 0.1 < d <= MAX_POLE_TO_POLE:
             w = d  # TODO: Adjust weight based on costs
             DG.add_edge(source_idx, p, weight=w, length=d, voltage="high")
 
@@ -209,9 +236,137 @@ class OptimizationRequest(BaseModel):
     Args:
         points: List of dicts with 'lat', 'lng', and optional 'name'.
         costs: Dict with poleCost, lowVoltageCostPerMeter, highVoltageCostPerMeter.
+        debug: Optional flag to enable debug output.
     """
     points: List[Dict[str, Union[float, str, None]]]
     costs: Dict[str, float]
+    debug: bool = False
+
+
+def build_bounding_box(coords):
+    """
+    Compute axis-aligned bounding box from array of [lat, lon] points.
+
+    Args:
+        coords: np.ndarray of shape (n, 2) where each row is [latitude, longitude]
+                or list of [lat, lon] pairs
+
+    Returns:
+        dict: {'min_lat': float, 'max_lat': float, 'min_lon': float, 'max_lon': float}
+              or None if input is empty/invalid
+    """
+    if len(coords) == 0:
+        return None
+
+    # Convert to numpy array if it's a list
+    coords = np.asarray(coords)
+
+    if coords.ndim != 2 or coords.shape[1] != 2:
+        raise ValueError("coords must be (n, 2) array or list of [lat, lon] pairs")
+
+    min_lat = np.min(coords[:, 0])
+    max_lat = np.max(coords[:, 0])
+    min_lon = np.min(coords[:, 1])
+    max_lon = np.max(coords[:, 1])
+
+    return {
+        'min_lat': float(min_lat),
+        'max_lat': float(max_lat),
+        'min_lon': float(min_lon),
+        'max_lon': float(max_lon)
+    }
+
+
+def filter_candidates_by_buildings(
+        candidates: Union[np.ndarray, list[tuple[float, float]]],
+        coords: Union[np.ndarray, list[tuple[float, float]]],
+        padding_deg: float = 0.0001  # tiny buffer ~11 m at equator
+) -> np.ndarray:
+    """
+    1. Compute bounding box from candidates (with small padding)
+    2. Keep only buildings whose CENTROID is INSIDE that bounding box
+    3. Parse geometry → shapely Polygon for those buildings only
+    4. Remove candidates that lie inside any of those building polygons
+
+    Returns filtered candidates as numpy array (n, 2)
+    """
+    coords = np.asarray(coords)
+    if coords.ndim != 2 or coords.shape[1] != 2:
+        raise ValueError("coords must be (n, 2) [[lat, lon], ...]")
+
+    if len(coords) == 0:
+        return coords
+
+    # ─── 1. Bounding box from coords ────────────────────────────────
+    min_lat = np.min(coords[:, 0])
+    max_lat = np.max(coords[:, 0])
+    min_lon = np.min(coords[:, 1])
+    max_lon = np.max(coords[:, 1])
+
+    # Optional small padding so buildings exactly on the edge are included
+    min_lat -= padding_deg
+    max_lat += padding_deg
+    min_lon -= padding_deg
+    max_lon += padding_deg
+
+    print(f"Candidates bbox (padded): "
+          f"lat [{min_lat:.8f}, {max_lat:.8f}], "
+          f"lon [{min_lon:.8f}, {max_lon:.8f}]")
+
+    # ─── 2. Load CSV and filter buildings by centroid inside bbox ────────
+    df = pd.read_csv("179_buildings.csv", usecols=['latitude', 'longitude', 'geometry'])
+
+    # Drop rows missing required columns
+    df = df.dropna(subset=['latitude', 'longitude', 'geometry'])
+
+    # Keep only buildings whose centroid is inside the bbox
+    inside_mask = (
+            (df['latitude'] >= min_lat) & (df['latitude'] <= max_lat) &
+            (df['longitude'] >= min_lon) & (df['longitude'] <= max_lon)
+    )
+
+    df_filtered = df[inside_mask].copy()
+
+    if df_filtered.empty:
+        print("No building centroids inside coords bbox → all candidates kept")
+        return candidates
+
+    print(f"Found {len(df_filtered)} buildings with centroid inside bbox")
+
+    # ─── 3. Parse geometry for the filtered buildings only ───────────────
+    df_filtered['poly'] = df_filtered['geometry'].apply(loads)
+
+    # Drop invalid geometries
+    df_filtered = df_filtered[df_filtered['poly'].apply(lambda g: g.is_valid if g else False)]
+
+    if df_filtered.empty:
+        print("No valid building polygons after filtering → all candidates kept")
+        return candidates
+
+    # ─── 4. Remove candidates inside any remaining building polygon ──────
+    polygons = df_filtered['poly'].values
+
+    def is_covered(lat: float, lon: float) -> bool:
+        pt = Point(lon, lat)  # shapely uses (x=lon, y=lat)
+        for poly in polygons:
+            if poly.contains(pt):
+                return True
+        return False
+
+    # Vectorized-ish check (still loop, but only over relevant buildings)
+    keep_mask = np.ones(len(candidates), dtype=bool)
+    for i, (lat, lon) in enumerate(candidates):
+        if is_covered(lat, lon):
+            keep_mask[i] = False
+
+    filtered = candidates[keep_mask]
+
+    removed = len(candidates) - len(filtered)
+    removed_nodes = [c for c in candidates if c not in filtered]
+    if removed > 0:
+        print(f"Removed {removed} candidates inside building footprints: {removed_nodes}")
+
+    return filtered
 
 
 def parse_input(request: OptimizationRequest):
@@ -219,15 +374,15 @@ def parse_input(request: OptimizationRequest):
     Parses input request containing information about geographical points, costs, and their attributes to generate structured
     data suitable for optimization tasks.
 
-    This function processes the input `OptimizationRequest` to extract coordinates, their names, and classify one of the 
+    This function processes the input `OptimizationRequest` to extract coordinates, their names, and classify one of the
     locations as the "Power Source". It ensures that the input contains at least two valid points, assigns a "Power Source"
-    if not explicitly provided, and organizes the remaining points as destinations. The function also validates and cleans input 
+    if not explicitly provided, and organizes the remaining points as destinations. The function also validates and cleans input
     data for consistency.
-    
+
     Args:
         request: Input request containing points and their associated costs
-        
-    Returns: 
+
+    Returns:
         A tuple containing coords, destination_indices, source_idx, original_names, costs
     """
 
@@ -251,16 +406,16 @@ def parse_input(request: OptimizationRequest):
             lat = float(p["lat"])
             lng = float(p["lng"])
         except (KeyError, TypeError, ValueError) as e:
-            raise ValueError(f"Point {i+1} missing/invalid lat/lng: {p}") from e
+            raise ValueError(f"Point {i + 1} missing/invalid lat/lng: {p}") from e
 
         if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
-            raise ValueError(f"Point {i+1} has invalid coordinates: ({lat}, {lng})")
+            raise ValueError(f"Point {i + 1} has invalid coordinates: ({lat}, {lng})")
 
         coords_list.append([lat, lng])
 
         # Name handling
         raw_name = p.get("name")
-        name = str(raw_name).strip() if raw_name is not None else f"Location {i+1}"
+        name = str(raw_name).strip() if raw_name is not None else f"Location {i + 1}"
         names.append(name)
 
         # Source detection (case-insensitive, more flexible)
@@ -282,7 +437,7 @@ def parse_input(request: OptimizationRequest):
     destination_indices = [i for i in range(len(coords)) if i != source_idx]
 
     return coords, destination_indices, source_idx, names, costs
-    
+
 
 def compute_mst(request: OptimizationRequest) -> Dict[str, Any]:
     """Compute a realistic power distribution network using MST with intermediate poles.
@@ -301,8 +456,13 @@ def compute_mst(request: OptimizationRequest) -> Dict[str, Any]:
     # ─── Process input ────────────────────────────────────────────────
     coords, destination_indices, source_idx, original_names, costs = parse_input(request)
 
+    debug = request.debug
+
     # ─── Generate candidates ────────────────────────────────────────────────
     candidates = generate_voronoi_candidates(coords)
+
+    # remove candidates that fall inside any building
+    # candidates = filter_candidates_by_buildings(candidates, coords)
 
     if len(candidates) > 0:
         extended_coords = np.vstack([coords, candidates])
@@ -386,9 +546,19 @@ def compute_mst(request: OptimizationRequest) -> Dict[str, Any]:
     total_cost_est = pole_cost_est + total_wire_est
 
     # ─── Return structured result ───────────────────────────────────────────
-    return {
-        "edges": edges,
-        "nodes": [
+    if debug:
+        return_nodes = [
+            {
+                "index": i,
+                "lat": float(coord[0]),
+                "lng": float(coord[1]),
+                "name":  f"Candidate {i}",
+                "type": "pole"
+            }
+            for i, coord in enumerate(extended_coords)
+        ]
+    else:
+        return_nodes = [
             {
                 "index": i,
                 "lat": float(extended_coords[i][0]),
@@ -397,7 +567,11 @@ def compute_mst(request: OptimizationRequest) -> Dict[str, Any]:
                 "type": "source" if i == source_idx else "destination" if i < pole_start_idx else "pole"
             }
             for i in sorted(used_nodes)
-        ],
+        ]
+
+    return {
+        "edges": edges,
+        "nodes": return_nodes,
         "totalLowVoltageMeters": round(total_low_m, 2),
         "totalHighVoltageMeters": round(total_high_m, 2),
         "numPolesUsed": num_poles,
