@@ -119,7 +119,7 @@ export default function TeamPage() {
               MEET THE TEAM
             </div>
             <h2 className='text-5xl font-bold tracking-tighter'>
-              The Georgia Tech Team
+              The Spring 2026 Team
             </h2>
           </div>
           <div className='hidden max-w-xs text-right text-sm text-zinc-400 md:block'>
